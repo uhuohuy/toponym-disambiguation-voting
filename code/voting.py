@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue Mar  8 16:25:31 2022
-@author: dlr\hu_xk
+@author: 
 """
 import haversine as hs
 import re
