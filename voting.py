@@ -55,6 +55,7 @@ def evaluate(detected, ground_truth, compared={},show_index=0):
 
     max_error_num = 0
     true_zero = 0
+    detection_rate = {}
     if detected:
         zero_count = 0
         dis_errors = []
@@ -122,12 +123,25 @@ def evaluate(detected, ground_truth, compared={},show_index=0):
                                                     print(show_index, key,(place['LOC'], place['lat'],place['lon']), (true_place['lat'],true_place['lon']))
                                 if not(true_place['lat']==0 and true_place['lon'] == 0) and not true_place['LOC'].lower() in remove_list:
                                     dis_errors.append(dis)
+                                    if true_place['type'] in detection_rate:
+                                        if dis < 161:
+                                            detection_rate[true_place['type']]+= 1
+                                    else:
+                                        if dis < 161:
+                                            detection_rate[true_place['type']]= 1
+                                    if true_place['type']+'full' in detection_rate:
+                                        detection_rate[true_place['type']+'full']+= 1
+                                    else:
+                                        detection_rate[true_place['type']+'full']= 1
+
                                 else:
                                     true_zero += 1
                                 break
                 if not bool_matched:
                     F_P += 1
                     t_f_p += 1
+            # if show_index == 1 and cur_FN != 0:
+            #     print(key)
             F_N += cur_FN
             # if cur_FN:
             #     print(cur_FN)
@@ -155,11 +169,11 @@ def evaluate(detected, ground_truth, compared={},show_index=0):
             # Compute the area using the composite trapezoidal rule.
             area = trapz(y)/(len(dis_errors))
 
-            return P,R,F, ave_error, median_error, ACU161, acu161count, len(dis_errors), zero_count, true_zero,area,dis_errors, max_error_num
+            return P,R,F, ave_error, median_error, ACU161, acu161count, len(dis_errors), zero_count, true_zero,area,dis_errors, max_error_num,detection_rate
         except:
-            return 0,0,0, 20000, 1000, 0, 0, 0, 0.8, 0, 0.8,[], 0
+            return 0,0,0, 20000, 1000, 0, 0, 0, 0.8, 0, 0.8,[], 0,{}
     else: 
-        return 0,0,0, 20000, 1000, 0, 0, 0, 0.8, 0, 0.8,[], 0
+        return 0,0,0, 20000, 1000, 0, 0, 0, 0.8, 0, 0.8,[], 0,{}
 def is_overlapping(x1,x2,y1,y2):
     return max(x1,y1) <= min(x2,y2)
 
@@ -499,8 +513,9 @@ def merge(datasets, keys, eps_km=800, min_samples=4, eps_2=10, weights = [1,1,1,
             if bool_check:
                 if len(group) >= 2:
                     place = voting(group,eps_km, min_samples, eps_2, weights, bool_weight)
-                  #  if  not(place['lat'] == 0 and place['lon'] == 0):
-                    new_places.append(place)
+                    if  not(place['lat'] == 0 and place['lon'] == 0):
+                        new_places.append(place)
+                        continue
                 else:
                     if len(group) != 0:
                         # for place in group:
@@ -513,7 +528,12 @@ def merge(datasets, keys, eps_km=800, min_samples=4, eps_2=10, weights = [1,1,1,
                     bool_add = 0
                     if key in base:
                         for base_place in base[key]:
-                            if is_equal(place,base_place):
+                            if is_equal(place,base_place) and not(base_place['lat'] == 0 and base_place['lon'] == 0):
+                                 for true_place in true_dictionary[key]:
+                                     if is_equal(place,true_place):
+                                         print(key,place,base_place,true_place)
+                                         break
+
                                  new_places.append(base_place)
                                  bool_add = 1
                                  break
@@ -766,8 +786,8 @@ def evaluate1(eps_km=800, min_samples=4, eps_2=10, data='geocorpora',weights = [
     stan_esti_dictionary = {}
     ein_esti_dictionary = {}
     ID_expansion = 5
-    max_place = 30
-    io = open('../data/'+data+'.json',"r")
+    max_place =100000
+    io = open('../data/'+data+'_adv.json',"r")
     true_dictionary = json.load(io)
     sorted_set = {}
     for key in true_dictionary:
@@ -818,7 +838,7 @@ def evaluate1(eps_km=800, min_samples=4, eps_2=10, data='geocorpora',weights = [
     systems7 = []
     systems8 = []
 
-    systems =   ensamble_systems( [genre_esti_dictionary, blink_esti_dictionary,  luke_esti_dictionary, \
+    systems =   ensamble_systems( [genre_esti_dictionary, blink_esti_dictionary,  luke_esti_dictionary, {}, \
                   \
                     \
                     cam_esti_dictionary, ein_esti_dictionary,CBH_esti_dictionary, SHS_esti_dictionary], [3,2,2,1,1,1,1,1,1])       
@@ -915,7 +935,7 @@ def evaluate1(eps_km=800, min_samples=4, eps_2=10, data='geocorpora',weights = [
        
     new_places = {}
     new_places = merge(systems, true_dictionary.keys(), eps_km, min_samples,eps_2, weights, \
-  bool_weight,must_contain_da,true_dictionary)
+  bool_weight,must_contain_da,true_dictionary) #stan_esti_dictionary clavin_esti_dictionary
     #     
         
     # Total_systems = len(systems1)
@@ -952,7 +972,7 @@ def evaluate1(eps_km=800, min_samples=4, eps_2=10, data='geocorpora',weights = [
     # voting2_161 = ACU161
     # total_dis_list.append(dis_list) new_places1,new_places2,new_places3, new_places4,
     # all_systems = []
-    all_systems = [fishing_esti_dictionary, dca_esti_dictionary,  rel_esti_dictionary, blink_esti_dictionary, bootleg_esti_dictionary,  \
+    all_systems = [fishing_esti_dictionary, dca_esti_dictionary, rel_esti_dictionary, blink_esti_dictionary, bootleg_esti_dictionary,  \
                     genre_esti_dictionary, extend_esti_dictionary, luke_esti_dictionary, stan_esti_dictionary, adapter_esti_dictionary, \
                         geopop_esti_dictionary,clavin_esti_dictionary,topocluster_esti_dictionary, mordecai_esti_dictionary, \
                       CBH_esti_dictionary, SHS_esti_dictionary,CHF_esti_dictionary, cam_esti_dictionary, new_places]
@@ -960,7 +980,7 @@ def evaluate1(eps_km=800, min_samples=4, eps_2=10, data='geocorpora',weights = [
     # all_systems.extend(partial_systems) #babelfy_esti_dictionary, tagme_esti_dictionary, mordecai_esti_dictionary,
     #all_systems = [topocluster_esti_dictionary,mordecai_esti_dictionary]
     # # all_systems = [new_places,new_places2,new_places3, new_places4, new_places5,new_places6,bootleg_esti_dictionary]
-    #partial_systems = []
+    # partial_systems = []
     single_ave = []
     single_161 = []
     single_areas = []
@@ -969,11 +989,13 @@ def evaluate1(eps_km=800, min_samples=4, eps_2=10, data='geocorpora',weights = [
     color_c = 0
     width = 12
     height = 5
+    all_detection_rate = []
     fig, axs = plt.subplots(figsize=(width, height), nrows=1, ncols=2)
     for i, system in enumerate(all_systems):
         P,R,F, ave_error, median_error, ACU161, acu161count, dis_errors, zero_count, \
-            true_zero, area , dis_list, max_error_num=\
+            true_zero, area , dis_list, max_error_num, detection_rate=\
                 evaluate(system, true_dictionary, true_dictionary, show_index=i) #
+        all_detection_rate.append(detection_rate)
         if bool_plot:
             if i in [11,18]:
                 new_list = [(np.log(x+1)/np.log(max_error)) for x in dis_list]
@@ -1011,29 +1033,30 @@ def evaluate1(eps_km=800, min_samples=4, eps_2=10, data='geocorpora',weights = [
             cur_MES = []
             cur_AUC = []
             P,R,F, ave_error, median_error, ACU161, acu161count,dis_errors, \
-            zero_count, true_zero, area , dis_list, max_error_num = evaluate(system, true_dictionary,true_dictionary)
+            zero_count, true_zero, area , dis_list, max_error_num, detection_rate = evaluate(system, true_dictionary,true_dictionary)
+            all_detection_rate.append(detection_rate)
             recall.append(R)
             cur_MES.append(int(ave_error))
             cur_ACU161s.append(round(ACU161, 2))
             cur_AUC.append(round(area, 2))
-            print('origin ', P,R,F, ave_error, median_error, ACU161, acu161count)
+            # print('origin ', P,R,F, ave_error, median_error, ACU161, acu161count)
 
             total_dis_list.append(dis_list)
             for another_system in all_systems:
             #new_places1 = merge(systems, true_dictionary.keys(), eps_km, min_samples, weights, bool_weight,4,true_dictionary)
                 P,R,F, ave_error, median_error, ACU161, acu161count,dis_errors,\
-                    zero_count, true_zero, area , dis_list, max_error_num = evaluate(another_system, true_dictionary,system)
+                    zero_count, true_zero, area , dis_list, max_error_num, detection_rate = evaluate(another_system, true_dictionary,system)
                 cur_MES.append(int(ave_error))
                 cur_ACU161s.append(round(ACU161, 2))
                 cur_AUC.append(round(area, 2))
-                print('align ', P,R,F, ave_error, median_error, ACU161, acu161count)
+                # print('align ', P,R,F, ave_error, median_error, ACU161, acu161count)
                 total_dis_list.append(dis_list)
             ACU161s_subsets.append(cur_ACU161s)
             MES_subsets.append(cur_MES)
             AUC_subsets.append(cur_AUC)
 
         
-    return ACU161s_subsets, MES_subsets, AUC_subsets, total_dis_list, recall
+    return ACU161s_subsets, MES_subsets, AUC_subsets, total_dis_list, recall, all_detection_rate
 
 def main():
     parser = argparse.ArgumentParser(description='manual to this script')
@@ -1056,8 +1079,9 @@ def main():
     total_acu161 = []
     total_me = []
     total_auc = []
+    sum_detection_rate = []
     base_dir = '../../experiments/'
-    datasets =['lgl','neel','trnews','gwn','geocorpora','geovirus','wiktor','wotr', 'LDC', 'TUD','semeval', '19th']
+    datasets = ['lgl','neel','trnews','gwn','geocorpora','geovirus','wiktor','wotr', 'LDC', 'TUD','semeval', '19th'] #['geocorpora','wotr'] # ['lgl','neel','trnews','gwn','geocorpora','geovirus','wiktor','wotr', 'LDC', 'TUD','semeval', '19th']
     if args.bool_importance:
         r1, r2, r3 = importance(datasets, args.eps, args.min_samples, args.eps2, bool_weight =0, must_contain_da = -1 )
         print(r1)
@@ -1079,22 +1103,42 @@ def main():
     else:
         if args.write:
             results = []
-            recalls1 = []
-            recalls2 = []
+            # recalls1 = []
+            # recalls2 = []
             for data in datasets: #'geovirus',
-                ACU161s_subsets, MES_subsets, AUC_subsets, total_dis_list, recall = evaluate1(args.eps,args.min_samples, args.eps_2, data, weights, args.bool_weight, args.must_contain_da, 1)
-                recalls1.append(recall[0])
-                recalls2.append(recall[1])
+                print('dataset',data)
+                ACU161s_subsets, MES_subsets, AUC_subsets, total_dis_list, recall,detection_rates = evaluate1(args.eps,args.min_samples, args.eps_2, data, weights, args.bool_weight, args.must_contain_da, 1)
+                if sum_detection_rate:
+                    for i, detection in enumerate(detection_rates):
+                        for key in detection:
+                            if key in sum_detection_rate[i]:
+                                sum_detection_rate[i][key]+=detection[key] 
+                            else:
+                                sum_detection_rate[i][key] =detection[key] 
+                else:
+                    sum_detection_rate = detection_rates
+                # recalls1.append(recall[0])
+                # recalls2.append(recall[1])
                 # results.extend(return_result)
                 total_acu161.append(ACU161s_subsets)
                 total_me.append(MES_subsets)
                 total_auc.append(AUC_subsets)
+            print(sum_detection_rate)
+            for key in ['Traffic', 'POI','Natural','AdminUnit']:
+                result_detect = []
+                for result in sum_detection_rate:
+                    if key in result:
+                        count = result[key]
+                    else:
+                        count = 0
+                    result_detect.append(count / result[key+'full'])
+                print(key,result_detect)
             for toponym in range(len(total_acu161[0])):
                 results = []
                 for data in total_acu161:
                     results.append(data[toponym])
                 
-                output = base_dir+'acu161'+str(toponym)+'2.csv'
+                output = base_dir+'acu161'+str(toponym)+'3.csv'
                 # print(results)
                 with open(output, 'w') as f:
                     wtr = csv.writer(f, delimiter= ',')
@@ -1105,7 +1149,7 @@ def main():
                 for data in total_me:
                     results.append(data[toponym])
                 
-                output = base_dir+'me'+str(toponym)+'2.csv'
+                output = base_dir+'me'+str(toponym)+'3.csv'
                 # print(results)
                 with open(output, 'w') as f:
                     wtr = csv.writer(f, delimiter= ',')
@@ -1116,13 +1160,13 @@ def main():
                 for data in total_auc:
                     results.append(data[toponym])
                 
-                output = base_dir+'auc'+str(toponym)+'2.csv'
+                output = base_dir+'auc'+str(toponym)+'3.csv'
                 # print(results)
                 with open(output, 'w') as f:
                     wtr = csv.writer(f, delimiter= ',')
                     wtr.writerows(results)
-            print(recalls1,recalls2)
-            print(np.mean(recalls1),np.mean(recalls2))
+            # print(recalls1,recalls2)
+            # print(np.mean(recalls1),np.mean(recalls2))
         else:
             evaluate1(args.eps,args.min_samples,args.eps_2,args.data, weights, args.bool_weight, args.must_contain_da)
 
