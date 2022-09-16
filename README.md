@@ -14,4 +14,4 @@ A voting based toponym disambiguation approach, which was compared with 20 lates
 
 
 Use the following command to run the voting approach on one certain dataset ('lgl','neel','trnews','gwn','geocorpora','geovirus','wiktor','wotr', 'LDC', 'TUD','semeval', '19th')
-> python voting.py --data geocorpora
+> python code/voting.py --data geocorpora
